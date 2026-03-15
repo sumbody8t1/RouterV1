@@ -66,11 +66,18 @@ function validateMap(body) {
 
 // Shape the DB row into the API response the frontend expects
 function formatMap(row) {
+    const d = row.data || {};
     return {
         id:        row.id,
         name:      row.name,
         direction: row.direction,
-        ...(row.data || {}),
+        // Native app format — used by loadMap() to call importCompleteMapData()
+        nativeMap: d.nativeMap || null,
+        // Legacy/summary fields
+        elements:  d.elements  || [],
+        metaData:  d.metaData  || {},
+        signals:   d.signals   || [],
+        lineNames: d.lineNames || [],
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };
@@ -182,14 +189,14 @@ app.post('/api/maps', requireAuth, async (req, res) => {
     const errors = validateMap(req.body);
     if (errors.length) return res.status(400).json({ errors });
 
-    const { name, direction, elements, metaData, signals, lineNames } = req.body;
+    const { name, direction, elements, metaData, signals, lineNames, nativeMap } = req.body;
     const { data, error } = await supabase
         .from('maps')
         .insert({
             user_id:   req.user.id,
             name,
             direction: direction || 'rtl',
-            data:      { elements: elements||[], metaData: metaData||{}, signals: signals||[], lineNames: lineNames||[] },
+            data:      { nativeMap: nativeMap||null, elements: elements||[], metaData: metaData||{}, signals: signals||[], lineNames: lineNames||[] },
         })
         .select().single();
 
@@ -209,13 +216,13 @@ app.put('/api/maps/:id', requireAuth, async (req, res) => {
         .eq('id', req.params.id).eq('user_id', req.user.id).single();
     if (!existing) return res.status(404).json({ error: 'Map not found' });
 
-    const { name, direction, elements, metaData, signals, lineNames } = req.body;
+    const { name, direction, elements, metaData, signals, lineNames, nativeMap } = req.body;
     const { data, error } = await supabase
         .from('maps')
         .update({
             name,
             direction: direction || 'rtl',
-            data:      { elements: elements||[], metaData: metaData||{}, signals: signals||[], lineNames: lineNames||[] },
+            data:      { nativeMap: nativeMap||null, elements: elements||[], metaData: metaData||{}, signals: signals||[], lineNames: lineNames||[] },
         })
         .eq('id', req.params.id)
         .select().single();
